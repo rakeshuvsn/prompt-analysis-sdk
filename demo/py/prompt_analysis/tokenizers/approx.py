@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import List, Dict
-
-from .base import Tokenizer
+from typing import Dict, List
 
 
 class ApproxTokenizer:
@@ -28,7 +26,8 @@ class ApproxTokenizer:
         # ~1.3 tokens per word is a common rough heuristic for English.
         est = int(round(len(words) * 1.3))
 
-        # Small penalty for lots of punctuation / JSON-like structures (often tokenizes worse than words)
+        # Small penalty for lots of punctuation / JSON-like structures.
+        # These often tokenize worse than plain words.
         punctuation = sum(1 for ch in cleaned if ch in "{}[]():,;\"'")
         est += int(punctuation / 40)
 

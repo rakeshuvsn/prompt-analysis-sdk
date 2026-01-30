@@ -34,4 +34,7 @@ packages = ["prompt_analysis", "cli"]
 
 [tool.ruff]
 line-length = 100
+exclude = ["demo/py"]
+
+[tool.ruff.lint]
 select = ["E", "F", "I"]

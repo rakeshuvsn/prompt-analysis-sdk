@@ -1,4 +1,3 @@
-# prompt_analysis/analyzer.py
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -11,7 +10,6 @@ from prompt_analysis.report import (
     Issue,
     PromptReport,
     Scores,
-    Severity,
     Suggestions,
     TokenEstimates,
 )
@@ -30,15 +28,6 @@ class AnalyzerOptions:
 
 
 class PromptAnalyzer:
-    """
-    Analyzer entrypoint with configurable model profiles + pricing.
-
-    - Uses AnalyzerConfig for defaults + model-specific tokenizer/pricing
-    - Runs rules to produce Issues
-    - Estimates tokens/waste
-    - Computes cost estimate (current vs optimized) when pricing is configured
-    """
-
     def __init__(self, config: Optional[AnalyzerConfig] = None):
         self.cfg = config or AnalyzerConfig()
 
@@ -52,7 +41,9 @@ class PromptAnalyzer:
         tokenizer: Optional[str] = None,
     ) -> PromptReport:
         model = model or self.cfg.defaults.model
-        expected_output_tokens = self.cfg.resolve_expected_output_tokens(model, expected_output_tokens)
+        expected_output_tokens = self.cfg.resolve_expected_output_tokens(
+            model, expected_output_tokens
+        )
         max_input_tokens = self.cfg.resolve_max_input_tokens(max_input_tokens)
         tokenizer = self.cfg.resolve_tokenizer(model, tokenizer)
 
@@ -76,25 +67,31 @@ class PromptAnalyzer:
         context_chunks: Optional[List[Dict[str, Any]]] = None,
     ) -> PromptReport:
         model = model or self.cfg.defaults.model
-        expected_output_tokens = self.cfg.resolve_expected_output_tokens(model, expected_output_tokens)
+        expected_output_tokens = self.cfg.resolve_expected_output_tokens(
+            model, expected_output_tokens
+        )
         max_input_tokens = self.cfg.resolve_max_input_tokens(max_input_tokens)
         tokenizer = self.cfg.resolve_tokenizer(model, tokenizer)
 
         tok = TOKENIZERS.get(tokenizer)
         if tok is None:
-            raise ValueError(f"Unknown tokenizer '{tokenizer}'. Available: {list(TOKENIZERS.keys())}")
+            available = list(TOKENIZERS.keys())
+            raise ValueError(f"Unknown tokenizer '{tokenizer}'. Available: {available}")
 
         normalized = normalize_messages(messages, context_chunks=context_chunks)
 
-        # Token estimates
-        input_tokens = tok.count_messages(normalized.messages) + tok.count_text(normalized.context_text)
+        input_tokens = tok.count_messages(normalized.messages) + tok.count_text(
+            normalized.context_text
+        )
         output_tokens_est = max(int(expected_output_tokens or 0), 0)
 
-        # Run rules
-        ctx = RuleContext(model=model, tokenizer=tokenizer, budgets={"max_input_tokens": max_input_tokens})
+        ctx = RuleContext(
+            model=model,
+            tokenizer=tokenizer,
+            budgets={"max_input_tokens": max_input_tokens},
+        )
         issues: List[Issue] = run_rules(DEFAULT_RULES, normalized, ctx)
 
-        # Missing checklist from issues
         missing: List[str] = []
         code_to_missing = {
             "MISSING_OUTPUT_FORMAT": "Output format (e.g., JSON schema / bullets / table)",
@@ -105,7 +102,6 @@ class PromptAnalyzer:
             if item and item not in missing:
                 missing.append(item)
 
-        # Waste estimation (MVP)
         output_risk = 0
         if any(i.code == "MISSING_OUTPUT_FORMAT" for i in issues):
             output_risk += 40
@@ -115,30 +111,36 @@ class PromptAnalyzer:
         wasted_tokens_est = min(int(input_tokens * 0.20) + output_risk, int(input_tokens * 0.6))
         wasted_tokens_est = max(wasted_tokens_est, 0)
 
-        # Scores (MVP)
         efficiency = max(0, 100 - int((wasted_tokens_est / max(input_tokens, 1)) * 120))
         completeness = 100 - (20 if missing else 0)
         structure = 85 if not any(i.code == "MISSING_OUTPUT_FORMAT" for i in issues) else 70
         clarity = 80
         overall = int(round((clarity + completeness + structure + efficiency) / 4))
 
-        rewritten = self._rewrite_suggestion(normalized.user_text or normalized.joined_text, expected_output_tokens)
+        base_text = normalized.user_text or normalized.joined_text
+        rewritten = self._rewrite_suggestion(base_text, expected_output_tokens)
 
-        # Cost estimate (if pricing configured)
         pricing = self.cfg.get_pricing(model)
         cost_estimate = None
         if pricing:
-            current = (input_tokens / 1000.0) * pricing.input_per_1k + (output_tokens_est / 1000.0) * pricing.output_per_1k
+            current = (
+                (input_tokens / 1000.0) * pricing.input_per_1k
+                + (output_tokens_est / 1000.0) * pricing.output_per_1k
+            )
 
-            # Optimized estimate: apply input savings + reduce output when missing format/limit
             input_savings = sum(max(0, i.savings_tokens_est) for i in issues)
             optimized_input = max(input_tokens - input_savings, 0)
 
-            needs_output_controls = any(i.code in ("MISSING_OUTPUT_FORMAT", "NO_OUTPUT_LIMIT") for i in issues)
+            needs_output_controls = any(
+                i.code in ("MISSING_OUTPUT_FORMAT", "NO_OUTPUT_LIMIT") for i in issues
+            )
             output_reduction_factor = 0.8 if needs_output_controls else 1.0
             optimized_output = max(int(output_tokens_est * output_reduction_factor), 0)
 
-            optimized = (optimized_input / 1000.0) * pricing.input_per_1k + (optimized_output / 1000.0) * pricing.output_per_1k
+            optimized = (
+                (optimized_input / 1000.0) * pricing.input_per_1k
+                + (optimized_output / 1000.0) * pricing.output_per_1k
+            )
             savings = max(current - optimized, 0.0)
             savings_pct = (savings / current * 100.0) if current > 0 else 0.0
 

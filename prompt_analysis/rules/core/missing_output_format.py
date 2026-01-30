@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from prompt_analysis.report import Issue, Severity
-from prompt_analysis.rules.base import PromptRule, RuleContext, NormalizedPrompt
+from prompt_analysis.rules.base import NormalizedPrompt, RuleContext
 
 
 class MissingOutputFormatRule:
@@ -9,7 +9,8 @@ class MissingOutputFormatRule:
 
     def evaluate(self, normalized: NormalizedPrompt, ctx: RuleContext):
         text = (normalized.joined_text or "").lower()
-        has_format = any(k in text for k in ["json", "yaml", "table", "bullet", "schema", "format:"])
+        keywords = ["json", "yaml", "table", "bullet", "schema", "format:"]
+        has_format = any(k in text for k in keywords)
         if has_format:
             return []
         return [
@@ -17,7 +18,10 @@ class MissingOutputFormatRule:
                 code=self.code,
                 severity=Severity.high,
                 message="No output format specified; responses may be verbose and inconsistent.",
-                fix="Add an explicit output format (e.g., JSON fields, bullet structure, or table columns).",
+                fix=(
+                    "Add an explicit output format (e.g., JSON fields, bullet structure, "
+                    "or table columns)."
+                ),
                 savings_tokens_est=30,
             )
         ]

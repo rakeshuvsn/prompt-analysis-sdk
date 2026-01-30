@@ -13,6 +13,7 @@ app = typer.Typer(add_completion=False, help="Prompt Analysis SDK CLI (promptlin
 
 def _read_stdin() -> str:
     import sys
+
     return sys.stdin.read()
 
 
@@ -30,7 +31,9 @@ def analyze(
     text: Optional[str] = typer.Option(None, "--text", help="Prompt text to analyze."),
     stdin: bool = typer.Option(False, "--stdin", help="Read prompt from STDIN."),
     config: str = typer.Option("promptanalysis.yml", "--config", help="Path to YAML config."),
-    model: Optional[str] = typer.Option(None, "--model", help="Model name (overrides config default)."),
+    model: Optional[str] = typer.Option(
+        None, "--model", help="Model name (overrides config default)."
+    ),
     tokenizer: Optional[str] = typer.Option(None, "--tokenizer", help="Tokenizer name override."),
     expected_output_tokens: Optional[int] = typer.Option(
         None, "--expected-output", help="Expected output tokens (override)."
@@ -53,14 +56,11 @@ def analyze(
     """
     Analyze a prompt and print a report.
     """
-
-    # Load config (fall back to empty defaults if file missing)
     cfg_path = Path(config)
     cfg = AnalyzerConfig.load(cfg_path) if cfg_path.exists() else AnalyzerConfig()
 
     analyzer = PromptAnalyzer(cfg)
 
-    # Get prompt text
     if stdin:
         prompt_text = _read_stdin()
     elif text is not None:
@@ -78,7 +78,6 @@ def analyze(
         max_input_tokens=max_input_tokens,
     )
 
-    # CI / gating checks
     exit_code = 0
 
     if min_score is not None and report.scores.overall < int(min_score):
@@ -86,7 +85,11 @@ def analyze(
 
     if fail_on:
         threshold = _severity_rank(fail_on)
-        max_found = max((_severity_rank(i.severity.value if hasattr(i.severity, "value") else str(i.severity)) for i in report.issues), default=0)
+        severities = []
+        for i in report.issues:
+            sev = i.severity.value if hasattr(i.severity, "value") else str(i.severity)
+            severities.append(_severity_rank(sev))
+        max_found = max(severities, default=0)
         if max_found >= threshold:
             exit_code = 2
 
@@ -94,15 +97,18 @@ def analyze(
         typer.echo(report.to_json(indent=2))
         raise typer.Exit(code=exit_code)
 
-    # Pretty human output
     typer.echo(f"Model: {report.model}")
     typer.echo(f"Overall score: {report.scores.overall}/100")
     typer.echo(
-        f"Scores: clarity={report.scores.clarity}, completeness={report.scores.completeness}, "
-        f"structure={report.scores.structure}, efficiency={report.scores.efficiency}"
+        "Scores: "
+        f"clarity={report.scores.clarity}, "
+        f"completeness={report.scores.completeness}, "
+        f"structure={report.scores.structure}, "
+        f"efficiency={report.scores.efficiency}"
     )
     typer.echo(
-        f"Tokens: input={report.token_estimates.input_tokens}, "
+        "Tokens: "
+        f"input={report.token_estimates.input_tokens}, "
         f"output_est={report.token_estimates.output_tokens_est}, "
         f"wasted_est={report.token_estimates.wasted_tokens_est}"
     )

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Dict, Protocol
+from typing import Dict, List, Protocol
 
 
 @dataclass(frozen=True)

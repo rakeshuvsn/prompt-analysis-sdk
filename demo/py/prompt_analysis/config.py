@@ -61,10 +61,14 @@ class AnalyzerConfig:
                     currency=str(pr.get("currency", "USD")),
                 )
 
+            default_max_out = int(
+                m.get("default_max_output_tokens", defaults.expected_output_tokens)
+            )
+
             models[name] = ModelProfile(
                 name=name,
                 context_window_tokens=int(m.get("context_window_tokens", 0)),
-                default_max_output_tokens=int(m.get("default_max_output_tokens", defaults.expected_output_tokens)),
+                default_max_output_tokens=default_max_out,
                 tokenizer=str(m.get("tokenizer", defaults.tokenizer)),
                 pricing=pricing,
             )
@@ -93,7 +97,9 @@ class AnalyzerConfig:
         mp = self.get_model(model)
         return mp.tokenizer or self.defaults.tokenizer
 
-    def resolve_expected_output_tokens(self, model: Optional[str], expected_override: Optional[int]) -> int:
+    def resolve_expected_output_tokens(
+        self, model: Optional[str], expected_override: Optional[int]
+    ) -> int:
         if expected_override is not None:
             return int(expected_override)
         mp = self.get_model(model)
