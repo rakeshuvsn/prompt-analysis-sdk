@@ -1,0 +1,3 @@
+from .core import CORE_RULES
+
+DEFAULT_RULES = CORE_RULES

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Prompt Analysis SDK Demo</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+
+  <body>
+    <header class="header">
+      <div class="container">
+        <h1>Prompt Analysis SDK</h1>
+        <p>Analyze prompts for clarity, efficiency, wasted tokens, and cost savings.</p>
+      </div>
+    </header>
+
+    <main class="container grid">
+      <section class="card">
+        <h2>Input</h2>
+
+        <label class="label">Model</label>
+        <select id="model" class="input">
+          <option value="gpt-4o-mini" selected>gpt-4o-mini</option>
+          <option value="claude-3-5-sonnet">claude-3-5-sonnet</option>
+          <option value="default">default</option>
+        </select>
+
+        <div class="row">
+          <div class="col">
+            <label class="label">Expected output tokens</label>
+            <input id="expectedOutput" class="input" type="number" value="300" min="1" />
+          </div>
+          <div class="col">
+            <label class="label">Max input tokens</label>
+            <input id="maxInput" class="input" type="number" value="2500" min="1" />
+          </div>
+        </div>
+
+        <label class="label">Prompt</label>
+        <textarea id="prompt" class="textarea" rows="10">Write a summary of this</textarea>
+
+        <div class="actions">
+          <button id="analyzeBtn" class="btn">Analyze</button>
+          <button id="copyBtn" class="btn secondary" disabled>Copy suggested prompt</button>
+        </div>
+
+        <div id="status" class="status">Loading Pyodide…</div>
+      </section>
+
+      <section class="card">
+        <h2>Results</h2>
+
+        <div class="metrics">
+          <div class="metric">
+            <div class="metricLabel">Overall</div>
+            <div id="scoreOverall" class="metricValue">–</div>
+          </div>
+          <div class="metric">
+            <div class="metricLabel">Efficiency</div>
+            <div id="scoreEfficiency" class="metricValue">–</div>
+          </div>
+          <div class="metric">
+            <div class="metricLabel">Input tokens</div>
+            <div id="inputTokens" class="metricValue">–</div>
+          </div>
+          <div class="metric">
+            <div class="metricLabel">Wasted tokens</div>
+            <div id="wastedTokens" class="metricValue">–</div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <h3>Cost</h3>
+        <pre id="costBox" class="pre">–</pre>
+
+        <h3>Issues</h3>
+        <div id="issues" class="issues">–</div>
+
+        <h3>Suggested prompt</h3>
+        <pre id="suggestedPrompt" class="pre">–</pre>
+
+        <details>
+          <summary>Raw JSON</summary>
+          <pre id="rawJson" class="pre">–</pre>
+        </details>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
